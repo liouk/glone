@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"os/exec"
+	"path/filepath"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -24,6 +25,14 @@ type reposErrorMsg struct {
 }
 
 type cloneDoneMsg struct {
+	path       string
+	repoName   string
+	message    string
+	err        error
+	openEditor bool
+}
+
+type editorOpenedMsg struct {
 	path    string
 	message string
 	err     error
@@ -41,13 +50,15 @@ type Model struct {
 	repoPicker repoPicker
 	result     resultScreen
 	orgs       []Org
+	editor     string
 	quitting   bool
 	resultText string
 }
 
-func New(orgs []Org) Model {
+func New(orgs []Org, editor string) Model {
 	m := Model{
-		orgs: orgs,
+		orgs:   orgs,
+		editor: editor,
 	}
 
 	if len(orgs) == 1 {
@@ -112,6 +123,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 
 	case cloneDoneMsg:
+		if msg.err != nil {
+			m.screen = screenResult
+			var cmd tea.Cmd
+			m.result, cmd = newResult(msg.err.Error(), true)
+			return m, cmd
+		}
+		if msg.openEditor && m.editor != "" {
+			return m, m.openEditor(repoItem{name: msg.repoName}, msg.path)
+		}
+		m.screen = screenResult
+		m.resultText = msg.path
+		var cmd tea.Cmd
+		m.result, cmd = newResult(msg.message, false)
+		return m, cmd
+
+	case editorOpenedMsg:
 		if msg.err != nil {
 			m.screen = screenResult
 			var cmd tea.Cmd
@@ -186,7 +213,7 @@ func (m Model) updateRepo(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.doClone(action),
 			)
 		case actionOpen:
-			return m, m.openEditor(action.item)
+			return m, m.openEditor(action.item, "")
 		}
 	}
 
@@ -285,8 +312,10 @@ func (m Model) doClone(action repoAction) tea.Cmd {
 			kind = "shallow cloned"
 		}
 		return cloneDoneMsg{
-			path:    path,
-			message: fmt.Sprintf("%s to %s", kind, path),
+			path:       path,
+			repoName:   action.item.name,
+			message:    fmt.Sprintf("%s to %s", kind, path),
+			openEditor: true,
 		}
 	}
 }
@@ -301,14 +330,17 @@ func (m Model) openBrowser(item repoItem) tea.Cmd {
 	}
 }
 
-func (m Model) openEditor(item repoItem) tea.Cmd {
+func (m Model) openEditor(item repoItem, path string) tea.Cmd {
 	return func() tea.Msg {
-		dir := m.cloneDirFor(item)
-		path, err := openEditorCmd(dir, item.name)
-		if err != nil {
-			return cloneDoneMsg{err: err}
+		if path == "" {
+			dir := m.cloneDirFor(item)
+			path = filepath.Join(dir, item.name)
 		}
-		return cloneDoneMsg{
+		_, err := openEditorCmd(m.editor, filepath.Dir(path), filepath.Base(path))
+		if err != nil {
+			return editorOpenedMsg{err: err}
+		}
+		return editorOpenedMsg{
 			path:    path,
 			message: fmt.Sprintf("opened %s", path),
 		}

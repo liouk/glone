@@ -19,6 +19,7 @@ Requires:
 Create `~/.config/glone/config.yaml`:
 
 ```yaml
+editor: zeditor                          # optional; auto-opens repos after clone
 orgs:
   - name: openshift
     clone_dir: ~/redhat/openshift       # repos clone to ~/redhat/openshift/<repo>
@@ -52,7 +53,7 @@ If multiple orgs are configured, you'll first pick one (press `1`-`9`/`0` to qui
 | `ctrl+o` | Open in browser |
 | `esc` / `ctrl+c` | Quit |
 
-Already-cloned repos are marked with ✓ and `enter` opens them in Zed (or `$EDITOR`).
+Already-cloned repos are marked with ✓ and `enter` opens them in the configured `editor`. After cloning, the repo auto-opens in the editor if configured; otherwise the path is printed to stdout.
 
 ### Shell integration
 

@@ -39,6 +39,8 @@ func (d repoDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 	name := r.name
 	if index == m.Index() {
 		name = selectedStyle.Render(name)
+	} else if r.cloned {
+		name = clonedStyle.Render(name)
 	}
 
 	desc := ""

@@ -42,18 +42,9 @@ func cloneRepoCmd(url, cloneDir, name string, shallow bool) (string, error) {
 	return dest, nil
 }
 
-func openEditorCmd(cloneDir, name string) (string, error) {
+func openEditorCmd(editor, cloneDir, name string) (string, error) {
 	dest := filepath.Join(cloneDir, name)
 
-	if _, err := exec.LookPath("zed"); err == nil {
-		cmd := exec.Command("zed", dest)
-		if err := cmd.Start(); err != nil {
-			return "", fmt.Errorf("could not open zed: %w", err)
-		}
-		return dest, nil
-	}
-
-	editor := os.Getenv("EDITOR")
 	if editor == "" {
 		return dest, nil
 	}

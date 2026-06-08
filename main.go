@@ -26,7 +26,7 @@ func main() {
 		orgs[i] = tui.Org{Name: o.Name, CloneDir: o.CloneDir, ForkCloneDirs: o.ForkCloneDirs}
 	}
 
-	p := tea.NewProgram(tui.New(orgs), tea.WithAltScreen())
+	p := tea.NewProgram(tui.New(orgs, cfg.Editor), tea.WithAltScreen())
 	m, err := p.Run()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)

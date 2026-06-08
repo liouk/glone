@@ -14,11 +14,13 @@ type orgEntry struct {
 }
 
 type config struct {
-	Orgs []orgEntry
+	Orgs   []orgEntry
+	Editor string
 }
 
 type rawConfig struct {
-	Orgs []yaml.Node `yaml:"orgs"`
+	Orgs   []yaml.Node `yaml:"orgs"`
+	Editor string      `yaml:"editor"`
 }
 
 type rawOrgObj struct {
@@ -48,7 +50,7 @@ func loadConfig() (*config, error) {
 		return nil, fmt.Errorf("no orgs configured in %s", path)
 	}
 
-	var cfg config
+	cfg := config{Editor: raw.Editor}
 	for _, node := range raw.Orgs {
 		switch node.Kind {
 		case yaml.MappingNode:
