@@ -293,6 +293,7 @@ func fetchRepos(org, cloneDir string, forkCloneDirs map[string]string, exclude m
 	return func() tea.Msg {
 		cmd := exec.Command("gh", "repo", "list", org,
 			"--json", "name,url,description,isFork,parent",
+			"--no-archived",
 			"--limit", "1000",
 		)
 		out, err := cmd.Output()
