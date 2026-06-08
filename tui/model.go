@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os/exec"
 	"path/filepath"
+	"sort"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -266,6 +267,9 @@ func cachedReposToItems(repos []cachedRepo, cloneDir string, forkCloneDirs map[s
 			cloned:      isRepoCloned(dir, r.Name),
 		}
 	}
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].name < items[j].name
+	})
 	return items
 }
 
