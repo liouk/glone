@@ -42,6 +42,51 @@ func cloneRepoCmd(url, cloneDir, name string, shallow bool) (string, error) {
 	return dest, nil
 }
 
+type cachedRepo struct {
+	Name        string `json:"name"`
+	URL         string `json:"url"`
+	Description string `json:"description"`
+	IsFork      bool   `json:"isFork"`
+	ParentOrg   string `json:"parentOrg,omitempty"`
+}
+
+func cachePath(org string) string {
+	dir, err := os.UserCacheDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(dir, "glone", org+".json")
+}
+
+func readCache(org string) ([]cachedRepo, error) {
+	path := cachePath(org)
+	if path == "" {
+		return nil, fmt.Errorf("no cache dir")
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var repos []cachedRepo
+	if err := json.Unmarshal(data, &repos); err != nil {
+		return nil, err
+	}
+	return repos, nil
+}
+
+func writeCache(org string, repos []cachedRepo) {
+	path := cachePath(org)
+	if path == "" {
+		return
+	}
+	os.MkdirAll(filepath.Dir(path), 0o755)
+	data, err := json.Marshal(repos)
+	if err != nil {
+		return
+	}
+	os.WriteFile(path, data, 0o644)
+}
+
 func openEditorCmd(editor, cloneDir, name string) (string, error) {
 	dest := filepath.Join(cloneDir, name)
 

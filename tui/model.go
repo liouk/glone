@@ -16,6 +16,10 @@ const (
 	screenResult
 )
 
+type reposCachedMsg struct {
+	repos []repoItem
+}
+
 type reposLoadedMsg struct {
 	repos []repoItem
 }
@@ -87,7 +91,8 @@ func (m Model) Init() tea.Cmd {
 	if m.screen == screenRepo {
 		return tea.Batch(
 			m.repoPicker.spinner.Tick,
-			m.loadRepos(m.orgs[0].Name, m.orgs[0].CloneDir, m.orgs[0].ForkCloneDirs),
+			loadCachedRepos(m.orgs[0].Name, m.orgs[0].CloneDir, m.orgs[0].ForkCloneDirs),
+			fetchRepos(m.orgs[0].Name, m.orgs[0].CloneDir, m.orgs[0].ForkCloneDirs),
 		)
 	}
 	return nil
@@ -110,13 +115,25 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
+	case reposCachedMsg:
+		m.repoPicker.allItems = msg.repos
+		m.repoPicker.loading = false
+		m.repoPicker.refreshing = true
+		m.repoPicker.applyFilter()
+		return m, nil
+
 	case reposLoadedMsg:
 		m.repoPicker.allItems = msg.repos
 		m.repoPicker.loading = false
+		m.repoPicker.refreshing = false
 		m.repoPicker.applyFilter()
 		return m, nil
 
 	case reposErrorMsg:
+		if len(m.repoPicker.allItems) > 0 {
+			m.repoPicker.refreshing = false
+			return m, nil
+		}
 		m.screen = screenResult
 		var cmd tea.Cmd
 		m.result, cmd = newResult(msg.err.Error(), true)
@@ -187,7 +204,8 @@ func (m Model) updateOrg(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.repoPicker.forkCloneDirs = chosenOrg.ForkCloneDirs
 		return m, tea.Batch(
 			m.repoPicker.spinner.Tick,
-			m.loadRepos(chosenOrg.Name, chosenOrg.CloneDir, chosenOrg.ForkCloneDirs),
+			loadCachedRepos(chosenOrg.Name, chosenOrg.CloneDir, chosenOrg.ForkCloneDirs),
+			fetchRepos(chosenOrg.Name, chosenOrg.CloneDir, chosenOrg.ForkCloneDirs),
 		)
 	}
 
@@ -236,11 +254,36 @@ func (m Model) View() string {
 	return ""
 }
 
-func (m Model) loadRepos(org, cloneDir string, forkCloneDirs map[string]string) tea.Cmd {
+func cachedReposToItems(repos []cachedRepo, cloneDir string, forkCloneDirs map[string]string) []repoItem {
+	items := make([]repoItem, len(repos))
+	for i, r := range repos {
+		dir := resolveCloneDir(cloneDir, forkCloneDirs, r.ParentOrg)
+		items[i] = repoItem{
+			name:        r.Name,
+			url:         r.URL,
+			description: r.Description,
+			parentOrg:   r.ParentOrg,
+			cloned:      isRepoCloned(dir, r.Name),
+		}
+	}
+	return items
+}
+
+func loadCachedRepos(org, cloneDir string, forkCloneDirs map[string]string) tea.Cmd {
+	return func() tea.Msg {
+		repos, err := readCache(org)
+		if err != nil || len(repos) == 0 {
+			return nil
+		}
+		return reposCachedMsg{repos: cachedReposToItems(repos, cloneDir, forkCloneDirs)}
+	}
+}
+
+func fetchRepos(org, cloneDir string, forkCloneDirs map[string]string) tea.Cmd {
 	return func() tea.Msg {
 		cmd := exec.Command("gh", "repo", "list", org,
 			"--json", "name,url,description,isFork,parent",
-			"--limit", "300",
+			"--limit", "1000",
 		)
 		out, err := cmd.Output()
 		if err != nil {
@@ -267,22 +310,23 @@ func (m Model) loadRepos(org, cloneDir string, forkCloneDirs map[string]string) 
 			return reposErrorMsg{err: err}
 		}
 
-		items := make([]repoItem, len(repos))
+		cached := make([]cachedRepo, len(repos))
 		for i, r := range repos {
 			parentOrg := ""
 			if r.IsFork && r.Parent != nil {
 				parentOrg = r.Parent.Owner.Login
 			}
-			dir := resolveCloneDir(cloneDir, forkCloneDirs, parentOrg)
-			items[i] = repoItem{
-				name:        r.Name,
-				url:         r.URL,
-				description: r.Description,
-				parentOrg:   parentOrg,
-				cloned:      isRepoCloned(dir, r.Name),
+			cached[i] = cachedRepo{
+				Name:        r.Name,
+				URL:         r.URL,
+				Description: r.Description,
+				IsFork:      r.IsFork,
+				ParentOrg:   parentOrg,
 			}
 		}
-		return reposLoadedMsg{repos: items}
+		writeCache(org, cached)
+
+		return reposLoadedMsg{repos: cachedReposToItems(cached, cloneDir, forkCloneDirs)}
 	}
 }
 

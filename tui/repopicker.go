@@ -61,6 +61,7 @@ type repoPicker struct {
 	allItems      []repoItem
 	spinner       spinner.Model
 	loading       bool
+	refreshing    bool
 	loadingMsg    string
 	org           string
 	cloneDir      string
@@ -155,7 +156,7 @@ func (r repoPicker) Update(msg tea.Msg) (repoPicker, tea.Cmd) {
 		return r, nil
 
 	case spinner.TickMsg:
-		if r.loading {
+		if r.loading || r.refreshing {
 			var cmd tea.Cmd
 			r.spinner, cmd = r.spinner.Update(msg)
 			return r, cmd
@@ -211,6 +212,11 @@ func (r repoPicker) View() string {
 
 	var b strings.Builder
 	b.WriteString(r.filter.View())
+	if r.refreshing {
+		b.WriteString("  ")
+		b.WriteString(r.spinner.View())
+		b.WriteString(dimStyle.Render(" refreshing…"))
+	}
 	b.WriteString("\n")
 	b.WriteString(r.list.View())
 	b.WriteString("\n")
