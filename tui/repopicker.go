@@ -31,9 +31,14 @@ func (d repoDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
 func (d repoDelegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
 	r := item.(repoItem)
 
-	prefix := "  "
+	cloneCol := "  "
 	if r.cloned {
-		prefix = clonedStyle.Render("✓ ")
+		cloneCol = clonedStyle.Render("✓ ")
+	}
+
+	forkCol := "  "
+	if r.parentOrg != "" {
+		forkCol = dimStyle.Render("⑂ ")
 	}
 
 	name := r.name
@@ -52,7 +57,7 @@ func (d repoDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 		}
 	}
 
-	fmt.Fprintf(w, "%s%s%s", prefix, name, desc)
+	fmt.Fprintf(w, "%s%s%s%s", cloneCol, forkCol, name, desc)
 }
 
 type repoPicker struct {
