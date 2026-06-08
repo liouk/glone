@@ -19,21 +19,27 @@ Requires:
 Create `~/.config/glone/config.yaml`:
 
 ```yaml
-editor: zeditor                          # optional; auto-opens repos after clone
+editor: code                             # optional; auto-opens repos after clone
 orgs:
-  - name: openshift
-    clone_dir: ~/redhat/openshift       # repos clone to ~/redhat/openshift/<repo>
-  - name: kubernetes
-    clone_dir: ~/redhat/kubernetes
-  - name: liouk
-    clone_dir: ~/liouk                  # original repos → ~/liouk/<repo>
-    fork_clone_dirs:                    # forks routed by parent org:
-      openshift: ~/redhat/liouk        #   openshift forks → ~/redhat/liouk/<repo>
-      kubernetes: ~/redhat/liouk       #   kubernetes forks → ~/redhat/liouk/<repo>
-                                        #   other forks → ~/liouk/<repo> (default)
+  - name: my-company
+    clone_dir: ~/src/my-company          # repos clone to ~/src/my-company/<repo>
+    exclude:                             # hide repos from the list
+      - .github
+      - old-project
+  - name: my-username
+    clone_dir: ~/src/personal            # original repos → ~/src/personal/<repo>
+    fork_clone_dirs:                     # forks routed by parent org:
+      my-company: ~/src/my-company-forks #   company forks → ~/src/my-company-forks/<repo>
+                                         #   other forks → ~/src/personal/<repo> (default)
 ```
 
-Each org requires `name` and `clone_dir`. Use `fork_clone_dirs` to route forks to different directories based on their parent org. Forks from unlisted parent orgs fall back to `clone_dir`.
+| Field | Required | Description |
+|-------|----------|-------------|
+| `editor` | no | Editor binary to open repos in after clone |
+| `orgs[].name` | yes | GitHub org or username |
+| `orgs[].clone_dir` | yes | Directory to clone repos into (`<clone_dir>/<repo>`) |
+| `orgs[].fork_clone_dirs` | no | Map of parent org → clone dir for forked repos |
+| `orgs[].exclude` | no | List of repo names to hide from the list |
 
 ## Usage
 

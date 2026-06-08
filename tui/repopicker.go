@@ -66,6 +66,7 @@ type repoPicker struct {
 	org           string
 	cloneDir      string
 	forkCloneDirs map[string]string
+	exclude       map[string]bool
 	action        repoAction
 }
 

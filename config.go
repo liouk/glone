@@ -11,6 +11,7 @@ type orgEntry struct {
 	Name          string
 	CloneDir      string
 	ForkCloneDirs map[string]string
+	Exclude       map[string]bool
 }
 
 type config struct {
@@ -27,6 +28,7 @@ type rawOrgObj struct {
 	Name          string            `yaml:"name"`
 	CloneDir      string            `yaml:"clone_dir"`
 	ForkCloneDirs map[string]string `yaml:"fork_clone_dirs"`
+	Exclude       []string          `yaml:"exclude"`
 }
 
 func loadConfig() (*config, error) {
@@ -76,10 +78,15 @@ func loadConfig() (*config, error) {
 				}
 				forkCloneDirs[parentOrg] = expanded
 			}
+			exclude := make(map[string]bool, len(obj.Exclude))
+			for _, name := range obj.Exclude {
+				exclude[name] = true
+			}
 			cfg.Orgs = append(cfg.Orgs, orgEntry{
 				Name:          obj.Name,
 				CloneDir:      cloneDir,
 				ForkCloneDirs: forkCloneDirs,
+				Exclude:       exclude,
 			})
 		default:
 			return nil, fmt.Errorf("org entries must be objects with 'name' and 'clone_dir' in %s", path)

@@ -47,6 +47,7 @@ type Org struct {
 	Name          string
 	CloneDir      string
 	ForkCloneDirs map[string]string
+	Exclude       map[string]bool
 }
 
 type Model struct {
@@ -72,6 +73,7 @@ func New(orgs []Org, editor string) Model {
 		m.repoPicker.org = orgs[0].Name
 		m.repoPicker.cloneDir = orgs[0].CloneDir
 		m.repoPicker.forkCloneDirs = orgs[0].ForkCloneDirs
+		m.repoPicker.exclude = orgs[0].Exclude
 	} else {
 		names := make([]string, len(orgs))
 		for i, o := range orgs {
@@ -92,8 +94,8 @@ func (m Model) Init() tea.Cmd {
 	if m.screen == screenRepo {
 		return tea.Batch(
 			m.repoPicker.spinner.Tick,
-			loadCachedRepos(m.orgs[0].Name, m.orgs[0].CloneDir, m.orgs[0].ForkCloneDirs),
-			fetchRepos(m.orgs[0].Name, m.orgs[0].CloneDir, m.orgs[0].ForkCloneDirs),
+			loadCachedRepos(m.orgs[0].Name, m.orgs[0].CloneDir, m.orgs[0].ForkCloneDirs, m.orgs[0].Exclude),
+			fetchRepos(m.orgs[0].Name, m.orgs[0].CloneDir, m.orgs[0].ForkCloneDirs, m.orgs[0].Exclude),
 		)
 	}
 	return nil
@@ -203,10 +205,11 @@ func (m Model) updateOrg(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.repoPicker.org = chosenOrg.Name
 		m.repoPicker.cloneDir = chosenOrg.CloneDir
 		m.repoPicker.forkCloneDirs = chosenOrg.ForkCloneDirs
+		m.repoPicker.exclude = chosenOrg.Exclude
 		return m, tea.Batch(
 			m.repoPicker.spinner.Tick,
-			loadCachedRepos(chosenOrg.Name, chosenOrg.CloneDir, chosenOrg.ForkCloneDirs),
-			fetchRepos(chosenOrg.Name, chosenOrg.CloneDir, chosenOrg.ForkCloneDirs),
+			loadCachedRepos(chosenOrg.Name, chosenOrg.CloneDir, chosenOrg.ForkCloneDirs, chosenOrg.Exclude),
+			fetchRepos(chosenOrg.Name, chosenOrg.CloneDir, chosenOrg.ForkCloneDirs, chosenOrg.Exclude),
 		)
 	}
 
@@ -255,17 +258,20 @@ func (m Model) View() string {
 	return ""
 }
 
-func cachedReposToItems(repos []cachedRepo, cloneDir string, forkCloneDirs map[string]string) []repoItem {
-	items := make([]repoItem, len(repos))
-	for i, r := range repos {
+func cachedReposToItems(repos []cachedRepo, cloneDir string, forkCloneDirs map[string]string, exclude map[string]bool) []repoItem {
+	var items []repoItem
+	for _, r := range repos {
+		if exclude[r.Name] {
+			continue
+		}
 		dir := resolveCloneDir(cloneDir, forkCloneDirs, r.ParentOrg)
-		items[i] = repoItem{
+		items = append(items, repoItem{
 			name:        r.Name,
 			url:         r.URL,
 			description: r.Description,
 			parentOrg:   r.ParentOrg,
 			cloned:      isRepoCloned(dir, r.Name),
-		}
+		})
 	}
 	sort.Slice(items, func(i, j int) bool {
 		return items[i].name < items[j].name
@@ -273,17 +279,17 @@ func cachedReposToItems(repos []cachedRepo, cloneDir string, forkCloneDirs map[s
 	return items
 }
 
-func loadCachedRepos(org, cloneDir string, forkCloneDirs map[string]string) tea.Cmd {
+func loadCachedRepos(org, cloneDir string, forkCloneDirs map[string]string, exclude map[string]bool) tea.Cmd {
 	return func() tea.Msg {
 		repos, err := readCache(org)
 		if err != nil || len(repos) == 0 {
 			return nil
 		}
-		return reposCachedMsg{repos: cachedReposToItems(repos, cloneDir, forkCloneDirs)}
+		return reposCachedMsg{repos: cachedReposToItems(repos, cloneDir, forkCloneDirs, exclude)}
 	}
 }
 
-func fetchRepos(org, cloneDir string, forkCloneDirs map[string]string) tea.Cmd {
+func fetchRepos(org, cloneDir string, forkCloneDirs map[string]string, exclude map[string]bool) tea.Cmd {
 	return func() tea.Msg {
 		cmd := exec.Command("gh", "repo", "list", org,
 			"--json", "name,url,description,isFork,parent",
@@ -330,7 +336,7 @@ func fetchRepos(org, cloneDir string, forkCloneDirs map[string]string) tea.Cmd {
 		}
 		writeCache(org, cached)
 
-		return reposLoadedMsg{repos: cachedReposToItems(cached, cloneDir, forkCloneDirs)}
+		return reposLoadedMsg{repos: cachedReposToItems(cached, cloneDir, forkCloneDirs, exclude)}
 	}
 }
 
