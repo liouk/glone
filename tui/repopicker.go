@@ -88,6 +88,7 @@ const (
 	actionShallowClone
 	actionBrowser
 	actionOpen
+	actionFork
 )
 
 func newRepoPicker() repoPicker {
@@ -136,6 +137,13 @@ func (r repoPicker) Update(msg tea.Msg) (repoPicker, tea.Cmd) {
 			if !item.cloned {
 				r.action = repoAction{kind: actionShallowClone, item: item}
 			}
+			return r, nil
+		case "ctrl+f":
+			item, ok := r.list.SelectedItem().(repoItem)
+			if !ok {
+				break
+			}
+			r.action = repoAction{kind: actionFork, item: item}
 			return r, nil
 		case "ctrl+o":
 			item, ok := r.list.SelectedItem().(repoItem)
@@ -227,7 +235,7 @@ func (r repoPicker) View() string {
 	b.WriteString(r.list.View())
 	b.WriteString("\n")
 
-	help := "  enter open/clone • ctrl+s shallow clone • ctrl+o browser • esc quit"
+	help := "  enter open/clone • ctrl+s shallow clone • ctrl+f fork • ctrl+o browser • esc quit"
 	b.WriteString(helpStyle.Render(help))
 	return b.String()
 }

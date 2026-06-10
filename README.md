@@ -56,10 +56,13 @@ If multiple orgs are configured, you'll first pick one (press `1`-`9`/`0` to qui
 | *type* | Fuzzy filter repos |
 | `enter` | Clone repo (or open if already cloned) |
 | `ctrl+s` | Shallow clone (`--depth 1`) |
+| `ctrl+f` | Fork repo, clone the fork, and open |
 | `ctrl+o` | Open in browser |
 | `esc` / `ctrl+c` | Quit |
 
 Already-cloned repos are marked with ✓ and `enter` opens them in the configured `editor`. After cloning, the repo auto-opens in the editor if configured; otherwise the path is printed to stdout.
+
+`ctrl+f` forks the selected repo under your GitHub user, clones the fork (using `fork_clone_dirs` to pick the destination), and opens it. Requires a matching org entry in your config for your GitHub username.
 
 ### Shell integration
 

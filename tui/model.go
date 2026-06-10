@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -236,6 +237,13 @@ func (m Model) updateRepo(msg tea.Msg) (tea.Model, tea.Cmd) {
 			)
 		case actionOpen:
 			return m, m.openEditor(action.item, "")
+		case actionFork:
+			m.repoPicker.loading = true
+			m.repoPicker.loadingMsg = fmt.Sprintf("Forking %s…", action.item.name)
+			return m, tea.Batch(
+				m.repoPicker.spinner.Tick,
+				m.doFork(action.item),
+			)
 		}
 	}
 
@@ -370,6 +378,56 @@ func (m Model) doClone(action repoAction) tea.Cmd {
 			path:       path,
 			repoName:   action.item.name,
 			message:    fmt.Sprintf("%s to %s", kind, path),
+			openEditor: true,
+		}
+	}
+}
+
+func (m Model) doFork(item repoItem) tea.Cmd {
+	return func() tea.Msg {
+		// get authenticated GitHub username
+		userCmd := exec.Command("gh", "api", "user", "--jq", ".login")
+		userOut, err := userCmd.Output()
+		if err != nil {
+			return cloneDoneMsg{err: fmt.Errorf("could not get GitHub user: %w", err)}
+		}
+		ghUser := strings.TrimSpace(string(userOut))
+
+		// find the user's org config to resolve clone dir
+		var userOrg *Org
+		for i := range m.orgs {
+			if m.orgs[i].Name == ghUser {
+				userOrg = &m.orgs[i]
+				break
+			}
+		}
+		if userOrg == nil {
+			return cloneDoneMsg{err: fmt.Errorf("no org config found for your GitHub user %q", ghUser)}
+		}
+
+		// resolve clone dir: check fork_clone_dirs for the current browsing org
+		cloneDir := userOrg.CloneDir
+		if dir, ok := userOrg.ForkCloneDirs[m.repoPicker.org]; ok {
+			cloneDir = dir
+		}
+
+		// fork the repo
+		forkCmd := exec.Command("gh", "repo", "fork", m.repoPicker.org+"/"+item.name, "--clone=false")
+		if out, err := forkCmd.CombinedOutput(); err != nil {
+			return cloneDoneMsg{err: fmt.Errorf("fork failed: %s", string(out))}
+		}
+
+		// clone the fork
+		forkURL := fmt.Sprintf("https://github.com/%s/%s.git", ghUser, item.name)
+		path, err := cloneRepoCmd(forkURL, cloneDir, item.name, false)
+		if err != nil {
+			return cloneDoneMsg{err: err}
+		}
+
+		return cloneDoneMsg{
+			path:       path,
+			repoName:   item.name,
+			message:    fmt.Sprintf("forked and cloned to %s", path),
 			openEditor: true,
 		}
 	}
