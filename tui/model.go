@@ -418,7 +418,7 @@ func (m Model) doFork(item repoItem) tea.Cmd {
 		}
 
 		// clone the fork
-		forkURL := fmt.Sprintf("https://github.com/%s/%s.git", ghUser, item.name)
+		forkURL := fmt.Sprintf("git@github.com:%s/%s.git", ghUser, item.name)
 		path, err := cloneRepoCmd(forkURL, cloneDir, item.name, false)
 		if err != nil {
 			return cloneDoneMsg{err: err}

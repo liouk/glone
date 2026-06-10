@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 func jsonUnmarshal(data []byte, v any) error {
@@ -16,6 +17,14 @@ func isRepoCloned(cloneDir, name string) bool {
 	dest := filepath.Join(cloneDir, name)
 	info, err := os.Stat(dest)
 	return err == nil && info.IsDir()
+}
+
+func httpsToSSH(url string) string {
+	url = strings.TrimSuffix(url, ".git")
+	if after, ok := strings.CutPrefix(url, "https://github.com/"); ok {
+		return "git@github.com:" + after + ".git"
+	}
+	return url
 }
 
 func cloneRepoCmd(url, cloneDir, name string, shallow bool) (string, error) {
@@ -33,7 +42,7 @@ func cloneRepoCmd(url, cloneDir, name string, shallow bool) (string, error) {
 	if shallow {
 		args = append(args, "--depth", "1")
 	}
-	args = append(args, url, dest)
+	args = append(args, httpsToSSH(url), dest)
 
 	cmd := exec.Command("git", args...)
 	if out, err := cmd.CombinedOutput(); err != nil {
