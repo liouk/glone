@@ -435,7 +435,9 @@ func (m Model) doFork(item repoItem) tea.Cmd {
 
 func (m Model) openBrowser(item repoItem) tea.Cmd {
 	return func() tea.Msg {
-		cmd := exec.Command("gh", "repo", "view", "--web", m.repoPicker.org+"/"+item.name)
+		cmd := exec.Command("gh", "browse", "-R", m.repoPicker.org+"/"+item.name)
+		cmd.Stdout = nil
+		cmd.Stderr = nil
 		if err := cmd.Run(); err != nil {
 			return cloneDoneMsg{err: fmt.Errorf("could not open browser: %w", err)}
 		}
